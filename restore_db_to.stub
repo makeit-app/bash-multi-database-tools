@@ -1,0 +1,45 @@
+#!/bin/bash
+
+clear
+
+RED="\033[1;31m"
+GREEN="\033[1;32m"
+NC="\033[0m" # No Color
+
+if [ $# -eq 0 ]; then
+    echo
+    printf "${RED}USAGE: ${0}  [filename.sql.gz]  [config_source]${NC}\n\n"
+    printf "  where: \n\n"
+    printf "  filename.sql.gz : is gzipped file with database dump\n\n"
+    printf "  config_source   : use configuration file with speciefic params\n"
+    printf "                    in example '${RED}bk${NC}' will use ${GREEN}config_to_${RED}bk${NC}${GREEN}.cfg${NC} variables\n\n"
+    exit 0
+fi
+
+if [ $# -eq 1 ]; then
+    echo
+    printf "${GREEN}USAGE: ${0}  [filename.sql.gz]${NC}  ${RED}[bk|tp]${NC}\n\n"
+    printf "  where: \n\n"
+    printf "  filename.sql.gz : is gzipped file with database dump\n\n"
+    printf "  config_source   : use configuration file with speciefic params\n"
+    printf "                    in example '${RED}bk${NC}' will use ${GREEN}config_to_${RED}bk${NC}${GREEN}.cfg${NC} variables\n\n"
+    exit 0
+fi
+
+if [ "$2" ]; then
+    source ../config_to_tp.cfg
+else
+    printf "${RED}NO SOURCE SPECIFIED${NC}\n"
+    exit 0
+fi
+
+printf "CLEANUP DATABASE ${GREEN}${BASE}${NC}\nPLEASE WAIT...\n"
+for table in $(PGPASSWORD=${PASS} psql -h ${HOST} -U ${USER} -d ${BASE} -t -c "${TABLES}"); do
+    echo "DROPPING ${table}"
+    PGPASSWORD=${PASS} psql -h ${HOST} -U ${USER} -d ${BASE} -t -c "DROP TABLE ${table} CASCADE;" > /dev/null 2>&1
+done;
+printf "DONE. \n"
+
+printf "RESTORE DATABASE ${GREEN}${BASE}${NC} FROM FILE ${GREEN}${1}${NC}\n\nPLEASE WAIT..."
+zcat ${1} | PGPASSWORD=${PASS} psql -h ${HOST} -U ${USER} -d ${BASE} > /dev/null
+printf "DONE. \n"
